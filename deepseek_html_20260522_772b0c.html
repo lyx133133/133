@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>寝室最美角落 · 班级报名+每日投票限制</title>
+    <!-- SheetJS 用于解析 Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #f5f7fb;
+            margin: 0;
+            padding: 20px;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 1.9rem;
+            background: linear-gradient(135deg, #2c3e66, #1e2a47);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 28px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            justify-content: center;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #334155;
+        }
+        .tab-btn.active {
+            background: #1e3a8a;
+            color: white;
+            box-shadow: 0 6px 12px rgba(30,58,138,0.2);
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 28px;
+            margin-top: 20px;
+        }
+        .dorm-card {
+            background: white;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 12px 24px -12px rgba(0,0,0,0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .img-area {
+            width: 100%;
+            background: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 260px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .img-area img {
+            width: 100%;
+            height: auto;
+            max-height: 320px;
+            object-fit: cover;
+            display: block;
+        }
+        .card-info {
+            padding: 16px 18px 18px;
+        }
+        .dorm-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .badge {
+            background: #eef2ff;
+            color: #1e3a8a;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .class-badge {
+            background: #f1f5f9;
+            color: #334155;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 14px;
+        }
+        button {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+            flex: 1;
+        }
+        .btn-keep {
+            background: #10b981;
+            color: white;
+        }
+        .btn-keep:hover:not(:disabled) {
+            background: #059669;
+        }
+        .btn-pass {
+            background: #f97316;
+            color: white;
+        }
+        .btn-pass:hover:not(:disabled) {
+            background: #ea580c;
+        }
+        .btn-vote {
+            background: #3b82f6;
+            color: white;
+            width: 100%;
+        }
+        .btn-vote:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .status-tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 30px;
+            margin-top: 8px;
+        }
+        .status-reserved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .counter-bar {
+            background: #eef2ff;
+            border-radius: 40px;
+            padding: 10px 18px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            flex-wrap: wrap;
+        }
+        .category-switch {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 48px;
+        }
+        .cat-btn {
+            background: #e2e8f0;
+            padding: 8px 20px;
+            border-radius: 32px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .cat-btn.active-cat {
+            background: #1e3a8a;
+            color: white;
+        }
+        .upload-area, .admin-tools {
+            background: white;
+            border-radius: 32px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 28px;
+            border: 1px solid #cbd5e1;
+            background: #fefefe;
+        }
+        .btn-primary {
+            background: #1e3a8a;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: bold;
+        }
+        .vote-stats {
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: #f1f5f9;
+            border-radius: 40px;
+            padding: 4px 12px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .permission-bar {
+            background: #fef9e3;
+            border-left: 5px solid #f59e0b;
+            padding: 12px 20px;
+            border-radius: 40px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .judge-auth {
+            background: white;
+            border-radius: 28px;
+            padding: 8px 16px;
+            display: inline-flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn-sm {
+            padding: 6px 16px;
+            font-size: 0.8rem;
+        }
+        .admin-btn {
+            background: #475569;
+            color: white;
+        }
+        .danger-btn {
+            background: #dc2626;
+            color: white;
+        }
+        .class-list-container {
+            background: #f8fafc;
+            border-radius: 24px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .class-tag {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 32px;
+            margin: 4px 6px 4px 0;
+            font-size: 0.8rem;
+        }
+        .file-format-hint {
+            font-size: 0.75rem;
+            color: #4b5563;
+            margin-top: 6px;
+        }
+        hr {
+            margin: 20px 0;
+        }
+        footer {
+            text-align: center;
+            margin-top: 48px;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        .vote-limit-info {
+            background: #e0f2fe;
+            border-radius: 40px;
+            padding: 8px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        @media (max-width: 640px) {
+            .card-grid { grid-template-columns: 1fr; }
+        }
+        .wechat-tip {
+            background: #e6f7ff;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.7rem;
+            display: inline-block;
+            margin-left: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🏠 寝室最美角落 · 云评选 <span class="wechat-tip">📱 微信内可用</span></h1>
+        <div class="sub">最平整床铺 · 最透亮窗台 · 最整齐阳台 · 最干净卫生角</div>
+        <div style="font-size:0.8rem; color:#4b5563; margin-top:6px;">⭐ 规则：每个班级在每个类别中仅可报名一个寝室（一张照片） | 每个用户每天最多投3票（基于设备记录）</div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn" data-tab="upload">📤 班级报名</button>
+        <button class="tab-btn" data-tab="review">🎯 评委初选</button>
+        <button class="tab-btn" data-tab="vote">🗳️ 学生投票</button>
+        <button class="tab-btn" data-tab="result">🏆 获奖结果</button>
+        <button class="tab-btn" data-tab="admin">⚙️ 管理员工具</button>
+    </div>
+
+    <!-- 班级报名板块 -->
+    <div id="uploadPanel" class="panel">
+        <div class="upload-area">
+            <h3>📸 班级报名上传「最美角落」</h3>
+            <div class="form-row">
+                <div class="form-group"><label>寝室号 (例: 2#304)</label><input type="text" id="dormNo" placeholder="如: 3#205"></div>
+                <div class="form-group"><label>所属班级 <span style="color:red;">*</span></label>
+                    <select id="classSelect"></select>
+                    <small id="classListHint" style="color:#e67e22;">请管理员先上传班级名单</small>
+                </div>
+                <div class="form-group"><label>评选类别</label><select id="uploadCategory"><option value="bed">🛏️ 最平整的床铺</option><option value="window">✨ 最透亮的窗台</option><option value="balcony">🧺 最整齐的阳台</option><option value="sanitary">🧹 最干净的卫生角</option></select></div>
+                <div class="form-group"><label>实拍照片</label><input type="file" id="imageFile" accept="image/jpeg,image/png,image/jpg"></div>
+                <div class="form-group"><button id="submitUploadBtn" class="btn-primary">✅ 提交报名</button></div>
+            </div>
+            <small>※ 每个班级在每个类别中只能提交一张照片（以班级为单位，不可重复）。评委验证密码后可进行初选。</small>
+        </div>
+        <div class="counter-bar"><span>📋 已报名总数：<strong id="totalItemsCount">0</strong></span><span>💡 评委需要验证密码后才可进行保留/PASS操作</span></div>
+    </div>
+
+    <!-- 评委初选板块 -->
+    <div id="reviewPanel" class="panel" style="display:none;">
+        <div class="permission-bar">
+            <span>🔐 评委操作权限：</span>
+            <div class="judge-auth">
+                <input type="password" id="judgePassword" placeholder="评委密码" style="width:150px;">
+                <button id="verifyJudgeBtn" class="btn-sm btn-primary">验证身份</button>
+                <span id="authStatus" style="font-weight:bold;">⚪ 未验证</span>
+            </div>
+        </div>
+        <div class="category-switch" id="reviewCatSwitch"></div>
+        <div class="counter-bar" id="reviewCounter"></div>
+        <div id="reviewCardsContainer" class="card-grid"></div>
+    </div>
+
+    <!-- 学生投票板块（增加每日限制显示） -->
+    <div id="votePanel" class="panel" style="display:none;">
+        <div class="vote-limit-info" id="voteLimitInfo">
+            <span>📊 今日剩余投票次数：<strong id="remainingVotes">3</strong> / 3</span>
+            <span style="font-size:0.75rem;">💡 每个设备每天最多投3票，修改投票不额外消耗次数</span>
+        </div>
+        <div class="category-switch" id="voteCatSwitch"></div>
+        <div id="voteCardsContainer" class="card-grid"></div>
+        <div style="margin-top:20px; text-align:center;">
+            <button id="resetVoteDataBtn" class="danger-btn">重置当前类别投票数据(管理员)</button>
+            <button id="resetDailyLimitBtn" class="admin-btn" style="margin-left:12px;">重置所有用户的每日投票限制(管理员)</button>
+        </div>
+    </div>
+
+    <!-- 结果板块 -->
+    <div id="resultPanel" class="panel" style="display:none;"><div id="resultContainer"></div></div>
+
+    <!-- 管理员工具板块 -->
+    <div id="adminPanel" class="panel" style="display:none;">
+        <div class="admin-tools">
+            <h3>🔧 管理员专属工具</h3>
+            <div class="form-row"><div class="form-group"><label>设置评委密码</label><input type="text" id="setJudgePwd" placeholder="新评委密码"></div><div class="form-group"><button id="saveJudgePwdBtn" class="btn-primary">保存密码</button></div></div>
+            <p>当前评委密码: <strong id="currentJudgePwdHint">******</strong> <button id="clearJudgeSessionBtn" class="btn-sm admin-btn">清除评委登录状态</button></p>
+            <hr>
+            <h4>📚 班级名单管理 (支持 Excel .xlsx/.xls, CSV, TXT)</h4>
+            <div class="form-row">
+                <div class="form-group"><label>上传班级名单文件</label><input type="file" id="classListFile" accept=".xlsx, .xls, .csv, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></div>
+                <div class="form-group"><button id="uploadClassListBtn" class="btn-primary">导入班级名单</button></div>
+                <div class="form-group"><button id="downloadTemplateBtn" class="admin-btn">📎 下载模板(.csv)</button></div>
+                <div class="form-group"><button id="clearClassListBtn" class="danger-btn">清空全部班级</button></div>
+            </div>
+            <div class="file-format-hint">📌 格式说明：Excel/CSV/TXT文件，请将班级名称放在第一列（每行一个班级），系统会自动识别。推荐使用提供的模板。</div>
+            <div id="classListDisplay" class="class-list-container">
+                <strong>当前班级列表：</strong><br>
+                <div id="classTags"></div>
+            </div>
+            <hr>
+            <h4>🗑️ 管理报名条目 (删除操作不可恢复)</h4>
+            <div id="adminItemsList" style="max-height:400px; overflow-y:auto;"></div>
+            <hr>
+            <button id="resetAllDataAdminBtn" class="danger-btn">⚠️ 重置全部数据 (清空所有报名+投票+评委设置+班级列表)</button>
+        </div>
+    </div>
+    <footer>寝室文化节 · 微信内完全支持 | 每个班级每个类别仅可报名一次 | 评委验证后方可操作保留/PASS | 每人每天限投3票</footer>
+</div>
+
+<script>
+    // ---------- 数据模型 ----------
+    const STORAGE_KEY = 'DormCornerRatingV6';
+    const DAILY_VOTE_LIMIT_KEY = 'DormVoteDailyLimit';  // 存储每日投票记录（设备维度）
+    const categories = { bed: { name: '最平整的床铺', icon: '🛏️' }, window: { name: '最透亮的窗台', icon: '✨' }, balcony: { name: '最整齐的阳台', icon: '🧺' }, sanitary: { name: '最干净的卫生角', icon: '🧹' } };
+    const categoryKeys = ['bed', 'window', 'balcony', 'sanitary'];
+
+    let judgePassword = '123456';
+    let isJudgeVerified = false;
+    let classList = ['计算机1班', '计算机2班', '电商3班', '幼教4班'];
+    let appData = { items: [], votes: { bed: {}, window: {}, balcony: {}, sanitary: {} } };
+    let studentVotes = { bed: null, window: null, balcony: null, sanitary: null };
+
+    // ---------- 每日投票限制 (基于 localStorage, 模拟设备/IP, 每天重置) ----------
+    function getTodayDateStr() {
+        return new Date().toISOString().slice(0,10);
+    }
+
+    // 获取当前设备的投票记录：返回 { date, usedCount }
+    function getDailyVoteRecord() {
+        const raw = localStorage.getItem(DAILY_VOTE_LIMIT_KEY);
+        if (raw) {
+            try {
+                const record = JSON.parse(raw);
+                if (record.date === getTodayDateStr()) {
+                    return record;
+                }
+            } catch(e) {}
+        }
+        return { date: getTodayDateStr(), usedCount: 0 };
+    }
+
+    // 更新每日已用票数 (增加或减少)
+    function updateDailyVoteCount(delta) {
+        let record = getDailyVoteRecord();
+        let newCount = record.usedCount + delta;
+        if (newCount < 0) newCount = 0;
+        record.usedCount = newCount;
+        localStorage.setItem(DAILY_VOTE_LIMIT_KEY, JSON.stringify(record));
+        updateVoteLimitDisplay();
+        return newCount;
+    }
+
+    // 获取今日剩余票数
+    function getRemainingVotes() {
+        const record = getDailyVoteRecord();
+        return Math.max(0, 3 - record.usedCount);
+    }
+
+    // 检查是否可以投新票 (净增票)
+    function canVoteNew() {
+        return getRemainingVotes() > 0;
+    }
+
+    // 刷新页面上的剩余次数显示
+    function updateVoteLimitDisplay() {
+        const remainingSpan = document.getElementById('remainingVotes');
+        if (remainingSpan) remainingSpan.innerText = getRemainingVotes();
+    }
+
+    // 管理员重置所有设备的每日投票限制 (清空localStorage键)
+    function resetAllDailyLimits() {
+        localStorage.removeItem(DAILY_VOTE_LIMIT_KEY);
+        // 注意：实际场景中每个设备独立，管理员操作仅清除自己设备，但这里为了演示，提供清除所有设备限制的功能需要遍历所有键？纯前端无法跨设备。
+        // 我们提供一个提示，实际中每个学生设备自己清除无效，因此真正的限制重置需要后端。
+        // 作为前端模拟，我们只清除当前设备的限制，但管理员工具中提供一个提醒。
+        alert("已清除当前设备的每日投票限制。注意：每个学生的投票限制存储在自己手机中，管理员无法远程清除。如需重置全校，请通知学生清空浏览器缓存或等待次日自动重置。");
+        updateVoteLimitDisplay();
+        renderCurrentPanel();  // 刷新投票界面按钮状态
+    }
+
+    // 投票核心逻辑（含每日限制）
+    function castVoteWithLimit(category, itemId) {
+        const reservedItems = appData.items.filter(i => i.category === category && i.status === 'reserved');
+        if (reservedItems.length === 0) { alert('无决赛寝室'); return false; }
+
+        const prevVoteId = studentVotes[category];
+        // 判断是否是修改投票（之前已投过该类别）
+        const isModify = (prevVoteId !== null && prevVoteId !== undefined);
+        
+        if (!isModify) {
+            // 新增投票，需要检查每日剩余票数
+            if (!canVoteNew()) {
+                alert(`今日投票次数已达上限（3次），请明天再参与！`);
+                return false;
+            }
+        }
+
+        // 执行投票变更
+        if (prevVoteId && prevVoteId !== itemId) {
+            // 撤销原票
+            if (appData.votes[category][prevVoteId]) {
+                appData.votes[category][prevVoteId]--;
+                if (appData.votes[category][prevVoteId] <= 0) delete appData.votes[category][prevVoteId];
+            }
+        }
+        // 增加新票
+        if (!appData.votes[category][itemId]) appData.votes[category][itemId] = 0;
+        appData.votes[category][itemId]++;
+        studentVotes[category] = itemId;
+        saveData();
+
+        // 调整每日使用次数：只有新增投票（之前该类别无投票）才消耗1次机会
+        if (!isModify) {
+            updateDailyVoteCount(1);
+        } else if (prevVoteId === itemId) {
+            // 重复点击同一个按钮无变化，不处理
+        } else {
+            // 修改投票，不增加票数消耗
+            // 无需调整
+        }
+        renderCurrentPanel();
+        alert(`投票成功！${isModify ? '已修改投票' : '感谢参与'}`);
+        return true;
+    }
+
+    // ---------- 通用数据持久化 ----------
+    function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            items: appData.items,
+            votes: appData.votes,
+            studentVotes: studentVotes,
+            judgePassword: judgePassword,
+            classList: classList
+        }));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+            try {
+                const data = JSON.parse(raw);
+                appData.items = data.items || [];
+                appData.votes = data.votes || { bed:{}, window:{}, balcony:{}, sanitary:{} };
+                studentVotes = data.studentVotes || { bed: null, window: null, balcony: null, sanitary: null };
+                if (data.judgePassword) judgePassword = data.judgePassword;
+                if (data.classList && Array.isArray(data.classList)) classList = data.classList;
+                else classList = ['计算机1班', '计算机2班', '电商3班', '幼教4班'];
+                categoryKeys.forEach(cat => { if (!appData.votes[cat]) appData.votes[cat] = {}; });
+                appData.items.forEach(item => { if (!item.className) item.className = '未分配班级'; });
+                return;
+            } catch(e) {}
+        }
+        // 完全空白初始化
+        appData.items = [];
+        appData.votes = { bed: {}, window: {}, balcony: {}, sanitary: {} };
+        studentVotes = { bed: null, window: null, balcony: null, sanitary: null };
+        judgePassword = '123456';
+        classList = ['计算机1班', '计算机2班', '电商3班', '幼教4班'];
+        saveData();
+    }
+
+    // 刷新班级下拉框
+    function refreshClassSelect() {
+        const select = document.getElementById('classSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        if (classList.length === 0) {
+            const option = document.createElement('option');
+            option.text = '请管理员先上传班级名单';
+            option.disabled = true;
+            option.selected = true;
+            select.appendChild(option);
+            document.getElementById('classListHint').style.display = 'inline';
+        } else {
+            document.getElementById('classListHint').style.display = 'none';
+            classList.forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls;
+                option.text = cls;
+                select.appendChild(option);
+            });
+        }
+    }
+
+    function renderClassTags() {
+        const container = document.getElementById('classTags');
+        if (!container) return;
+        if (classList.length === 0) { container.innerHTML = '<span style="color:gray;">暂无班级，请上传班级名单</span>'; return; }
+        container.innerHTML = classList.map(cls => `<span class="class-tag">${cls} <button data-cls="${cls}" class="remove-class-btn" style="background:none; border:none; color:#dc2626; font-weight:bold; cursor:pointer; margin-left:5px;">✖</button></span>`).join('');
+        document.querySelectorAll('.remove-class-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const clsToRemove = btn.dataset.cls;
+                if (confirm(`删除班级 "${clsToRemove}" 后，已报名该班级的寝室仍会显示原班级名称，确定删除？`)) {
+                    classList = classList.filter(c => c !== clsToRemove);
+                    saveData();
+                    refreshClassSelect();
+                    renderClassTags();
+                    renderCurrentPanel();
+                }
+            });
+        });
+    }
+
+    // 解析班级名单文件
+    function parseClassListFile(file) {
+        return new Promise((resolve, reject) => {
+            const fileName = file.name;
+            const ext = fileName.split('.').pop().toLowerCase();
+            if (ext === 'xlsx' || ext === 'xls') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+                    if (!rows || rows.length === 0) { reject("Excel文件无数据"); return; }
+                    const classes = [];
+                    for (let i = 0; i < rows.length; i++) {
+                        let firstCell = rows[i][0];
+                        if (firstCell && typeof firstCell === 'string') firstCell = firstCell.trim();
+                        else if (firstCell && typeof firstCell !== 'string') firstCell = String(firstCell).trim();
+                        if (firstCell && firstCell !== "") classes.push(firstCell);
+                    }
+                    if (classes.length === 0) reject("未找到有效的班级名称（请确保第一列有班级名）");
+                    else resolve([...new Set(classes)]);
+                };
+                reader.onerror = () => reject("读取Excel失败");
+                reader.readAsArrayBuffer(file);
+            } else {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
+                    const classes = lines.map(l => l.trim());
+                    if (classes.length === 0) reject("文件无有效班级名");
+                    else resolve([...new Set(classes)]);
+                };
+                reader.onerror = () => reject("读取文件失败");
+                reader.readAsText(file, "UTF-8");
+            }
+        });
+    }
+
+    async function uploadClassList(file) {
+        if (!file) return;
+        try {
+            const newClasses = await parseClassListFile(file);
+            if (newClasses.length === 0) throw new Error("未提取到班级名称");
+            classList = newClasses;
+            saveData();
+            refreshClassSelect();
+            renderClassTags();
+            renderCurrentPanel();
+            alert(`成功导入 ${classList.length} 个班级！报名时可选择。`);
+        } catch (err) {
+            alert("解析失败：" + err.message || "请确保文件格式正确，第一列为班级名称（每行一个班级）");
+        }
+    }
+
+    function downloadTemplate() {
+        const templateContent = "计算机1班\n计算机2班\n电商3班\n幼教4班\n动漫5班";
+        const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.setAttribute("download", "班级名单模板.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    // 报名
+    function addNewItem(dormNo, category, imageBase64, className) {
+        if (!dormNo.trim()) { alert('请填写寝室号'); return false; }
+        if (!className) { alert('请选择班级'); return false; }
+        if (!imageBase64) { alert('请选择图片'); return false; }
+        const existing = appData.items.some(item => item.className === className && item.category === category);
+        if (existing) {
+            alert(`❌ 班级「${className}」已经在「${categories[category].name}」类别中提交过照片（每个班级每个类别仅限一张）。`);
+            return false;
+        }
+        const newId = Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+        appData.items.push({
+            id: newId,
+            dormNo: dormNo.trim(),
+            category: category,
+            imageDataUrl: imageBase64,
+            status: 'pending',
+            className: className
+        });
+        saveData();
+        alert('报名成功！评委验证后可进行初选');
+        renderCurrentPanel();
+        return true;
+    }
+
+    function getReservedCount(category) {
+        return appData.items.filter(item => item.category === category && item.status === 'reserved').length;
+    }
+
+    function setItemStatus(itemId, newStatus) {
+        if (!isJudgeVerified) { alert("⛔ 评委未验证身份，无法操作保留/PASS。请先输入评委密码验证。"); return false; }
+        const item = appData.items.find(i => i.id === itemId);
+        if (!item) return false;
+        const cat = item.category;
+        const oldStatus = item.status;
+        if (newStatus === 'reserved') {
+            const currentReserved = getReservedCount(cat);
+            if (oldStatus !== 'reserved' && currentReserved >= 10) {
+                alert(`⚠️ 该类别最多保留10个决赛寝室！当前已保留${currentReserved}个。`);
+                return false;
+            }
+        }
+        item.status = newStatus;
+        if ((oldStatus === 'reserved' || newStatus === 'reserved') && oldStatus !== newStatus) {
+            appData.votes[cat] = {};
+            studentVotes[cat] = null;
+            alert(`📢 「${categories[cat].name}」决赛名单变动，已重置该类投票数据。`);
+        }
+        saveData();
+        renderCurrentPanel();
+        return true;
+    }
+
+    function deleteItemById(itemId) {
+        const item = appData.items.find(i => i.id === itemId);
+        if (!item) return;
+        const cat = item.category;
+        const idx = appData.items.findIndex(i => i.id === itemId);
+        if (idx !== -1) {
+            appData.items.splice(idx, 1);
+            if (item.status === 'reserved') {
+                appData.votes[cat] = {};
+                studentVotes[cat] = null;
+                alert(`已删除决赛寝室，${categories[cat].name}投票已重置`);
+            } else {
+                if (appData.votes[cat] && appData.votes[cat][itemId]) delete appData.votes[cat][itemId];
+            }
+            saveData();
+            renderCurrentPanel();
+        }
+    }
+
+    function resetVotesByCategory(category) {
+        if (!confirm(`管理员确认重置「${categories[category].name}」所有投票数据？`)) return;
+        appData.votes[category] = {};
+        // 同时重置所有学生的该类别投票记录
+        for (let catKey of categoryKeys) {
+            if (catKey === category) studentVotes[catKey] = null;
+        }
+        saveData();
+        renderCurrentPanel();
+    }
+
+    function resetAllSystem() {
+        if (!confirm("⚠️ 重置全部数据将清空所有报名、投票、班级列表，评委密码恢复默认123456，确定吗？")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        loadData();
+        isJudgeVerified = false;
+        saveData();
+        renderCurrentPanel();
+        alert("已重置所有数据，班级列表恢复默认，评委密码为123456");
+    }
+
+    // UI渲染
+    let activeTab = 'upload';
+    let reviewActiveCat = 'bed';
+    let voteActiveCat = 'bed';
+
+    function renderCurrentPanel() {
+        document.getElementById('totalItemsCount').innerText = appData.items.length;
+        document.querySelectorAll('.panel').forEach(panel => panel.style.display = 'none');
+        document.getElementById(`${activeTab}Panel`).style.display = 'block';
+        if (activeTab === 'upload') refreshClassSelect();
+        else if (activeTab === 'review') renderReviewPanel();
+        else if (activeTab === 'vote') { renderVotePanel(); updateVoteLimitDisplay(); }
+        else if (activeTab === 'result') renderResultPanel();
+        else if (activeTab === 'admin') { renderAdminPanel(); renderClassTags(); }
+    }
+
+    function renderReviewPanel() {
+        const switchDiv = document.getElementById('reviewCatSwitch');
+        switchDiv.innerHTML = categoryKeys.map(cat => `<button class="cat-btn ${reviewActiveCat === cat ? 'active-cat' : ''}" data-cat="${cat}">${categories[cat].icon} ${categories[cat].name}</button>`).join('');
+        switchDiv.querySelectorAll('.cat-btn').forEach(btn => btn.addEventListener('click', (e) => { reviewActiveCat = btn.dataset.cat; renderReviewPanel(); }));
+        const items = appData.items.filter(i => i.category === reviewActiveCat);
+        const reservedCount = getReservedCount(reviewActiveCat);
+        document.getElementById('reviewCounter').innerHTML = `📌 ${categories[reviewActiveCat].name} | 已保留: ${reservedCount} / 10 | 评委验证: ${isJudgeVerified ? '✅ 已验证' : '❌ 未验证'}`;
+        const container = document.getElementById('reviewCardsContainer');
+        if (items.length === 0) { container.innerHTML = '<div style="padding:40px;text-align:center;">✨ 暂无报名信息，请班级先上传照片 ✨</div>'; return; }
+        container.innerHTML = items.map(item => {
+            const statusText = { 'reserved': '✅ 晋级决赛', 'rejected': '❌ 淘汰', 'pending': '⏳ 待评选' }[item.status];
+            const statusClass = { 'reserved': 'status-reserved', 'rejected': 'status-rejected', 'pending': 'status-pending' }[item.status];
+            return `<div class="dorm-card"><div class="img-area"><img src="${item.imageDataUrl}" loading="lazy" onerror="this.src='https://picsum.photos/id/1/400/300'"></div><div class="card-info"><div class="dorm-title"><span>🏠 ${item.dormNo}</span><span class="badge">${categories[item.category].name}</span></div><div><span class="class-badge">📚 ${item.className || '未分配班级'}</span></div><div class="status-tag ${statusClass}">${statusText}</div><div class="button-group"><button class="btn-keep" data-id="${item.id}" ${!isJudgeVerified ? 'disabled' : ''}>✅ 保留</button><button class="btn-pass" data-id="${item.id}" ${!isJudgeVerified ? 'disabled' : ''}>🚫 PASS</button></div></div></div>`;
+        }).join('');
+        container.querySelectorAll('.btn-keep').forEach(btn => btn.addEventListener('click', () => setItemStatus(btn.dataset.id, 'reserved')));
+        container.querySelectorAll('.btn-pass').forEach(btn => btn.addEventListener('click', () => setItemStatus(btn.dataset.id, 'rejected')));
+        document.getElementById('authStatus').innerText = isJudgeVerified ? '✅ 评委已验证' : '⚪ 未验证';
+    }
+
+    function renderVotePanel() {
+        const switchDiv = document.getElementById('voteCatSwitch');
+        switchDiv.innerHTML = categoryKeys.map(cat => `<button class="cat-btn ${voteActiveCat === cat ? 'active-cat' : ''}" data-cat="${cat}">${categories[cat].icon} ${categories[cat].name}</button>`).join('');
+        switchDiv.querySelectorAll('.cat-btn').forEach(btn => btn.addEventListener('click', (e) => { voteActiveCat = btn.dataset.cat; renderVotePanel(); }));
+        const finalItems = appData.items.filter(i => i.category === voteActiveCat && i.status === 'reserved');
+        const container = document.getElementById('voteCardsContainer');
+        if (finalItems.length === 0) { container.innerHTML = `<div style="padding:40px;text-align:center;">🏅 暂无晋级决赛寝室，请评委先完成初选保留</div>`; return; }
+        container.innerHTML = finalItems.map(item => {
+            const currentVoteCount = appData.votes[voteActiveCat][item.id] || 0;
+            const alreadyVoted = (studentVotes[voteActiveCat] === item.id);
+            return `<div class="dorm-card"><div class="img-area"><img src="${item.imageDataUrl}"></div><div class="card-info"><div class="dorm-title"><span>🏠 ${item.dormNo}</span><span class="badge">❤️ ${currentVoteCount}票</span></div><div><span class="class-badge">📚 ${item.className || '未分配班级'}</span></div><button class="btn-vote" data-id="${item.id}" ${alreadyVoted ? 'disabled' : ''}>${alreadyVoted ? '✓ 已投票' : '🗳️ 投一票'}</button><div class="vote-stats">⭐ 当前票数: ${currentVoteCount}</div></div></div>`;
+        }).join('');
+        container.querySelectorAll('.btn-vote:not([disabled])').forEach(btn => btn.addEventListener('click', () => castVoteWithLimit(voteActiveCat, btn.dataset.id)));
+        document.getElementById('resetVoteDataBtn').onclick = () => resetVotesByCategory(voteActiveCat);
+        document.getElementById('resetDailyLimitBtn').onclick = () => resetAllDailyLimits();
+    }
+
+    function renderResultPanel() {
+        let html = '';
+        for (let cat of categoryKeys) {
+            const finalItems = appData.items.filter(i => i.category === cat && i.status === 'reserved');
+            const voteMap = appData.votes[cat] || {};
+            const withVotes = finalItems.map(item => ({ ...item, votes: voteMap[item.id] || 0 }));
+            withVotes.sort((a,b) => b.votes - a.votes);
+            const top3 = withVotes.slice(0,3);
+            html += `<div style="background:white; border-radius:28px; padding:18px; margin-bottom:24px;"><h3>🏆 ${categories[cat].icon} ${categories[cat].name}</h3>`;
+            if (top3.length === 0) html += `<p>暂无决赛寝室或未投票</p>`;
+            else { html += `<ol>`; top3.forEach((item, idx) => { html += `<li><strong>${idx+1}. ${item.dormNo}</strong> (${item.className || '未知班级'}) — 票数: ${item.votes} 票</li>`; }); html += `</ol>`; }
+            html += `</div>`;
+        }
+        document.getElementById('resultContainer').innerHTML = html;
+    }
+
+    function renderAdminPanel() {
+        document.getElementById('currentJudgePwdHint').innerText = '*'.repeat(judgePassword.length);
+        const container = document.getElementById('adminItemsList');
+        if (appData.items.length === 0) { container.innerHTML = '<p>暂无任何报名数据</p>'; return; }
+        container.innerHTML = appData.map(item => `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding:8px 0;">
+                <span><strong>${item.dormNo}</strong> (${categories[item.category].name}) 班级:${item.className || '?'} ${item.status === 'reserved' ? '🏆决赛' : (item.status==='rejected'?'❌淘汰':'⏳待评')}</span>
+                <button class="danger-btn btn-sm" data-id="${item.id}">删除</button>
+            </div>
+        `).join('');
+        container.querySelectorAll('.danger-btn').forEach(btn => btn.addEventListener('click', () => { if(confirm('永久删除该条目？')) deleteItemById(btn.dataset.id); }));
+    }
+
+    function verifyJudge() { const pwd = document.getElementById('judgePassword').value; if (pwd === judgePassword) { isJudgeVerified = true; alert("评委验证成功！"); renderCurrentPanel(); } else { alert("密码错误"); isJudgeVerified = false; renderCurrentPanel(); } }
+    function logoutJudge() { isJudgeVerified = false; renderCurrentPanel(); alert("评委已退出验证。"); }
+    function updateJudgePassword() { const newPwd = document.getElementById('setJudgePwd').value.trim(); if(!newPwd) { alert("密码不能为空"); return; } judgePassword = newPwd; saveData(); alert(`评委密码已更新为: ${newPwd}`); renderAdminPanel(); }
+
+    // 事件绑定
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { activeTab = btn.dataset.tab; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderCurrentPanel(); }));
+    document.getElementById('submitUploadBtn').addEventListener('click', () => {
+        const dormNo = document.getElementById('dormNo').value;
+        const category = document.getElementById('uploadCategory').value;
+        const className = document.getElementById('classSelect').value;
+        const file = document.getElementById('imageFile').files[0];
+        if (!file) { alert("请选择图片"); return; }
+        if (classList.length === 0 || !className) { alert("请先由管理员上传班级名单或选择有效班级"); return; }
+        const reader = new FileReader();
+        reader.onload = e => addNewItem(dormNo, category, e.target.result, className);
+        reader.readAsDataURL(file);
+    });
+    document.getElementById('verifyJudgeBtn')?.addEventListener('click', verifyJudge);
+    document.getElementById('clearJudgeSessionBtn')?.addEventListener('click', logoutJudge);
+    document.getElementById('saveJudgePwdBtn')?.addEventListener('click', updateJudgePassword);
+    document.getElementById('uploadClassListBtn')?.addEventListener('click', () => { const file = document.getElementById('classListFile').files[0]; if(file) uploadClassList(file); else alert("请选择文件"); });
+    document.getElementById('downloadTemplateBtn')?.addEventListener('click', downloadTemplate);
+    document.getElementById('clearClassListBtn')?.addEventListener('click', () => { if(confirm("清空所有班级后，报名时无法选择班级，确定？")) { classList = []; saveData(); refreshClassSelect(); renderClassTags(); renderCurrentPanel(); alert("班级列表已清空"); } });
+    document.getElementById('resetAllDataAdminBtn')?.addEventListener('click', resetAllSystem);
+
+    loadData();
+    refreshClassSelect();
+    renderCurrentPanel();
+    document.querySelector('.tab-btn.active')?.classList.remove('active');
+    document.querySelector('.tab-btn[data-tab="upload"]').classList.add('active');
+    updateVoteLimitDisplay();
+</script>
+</body>
+</html>
